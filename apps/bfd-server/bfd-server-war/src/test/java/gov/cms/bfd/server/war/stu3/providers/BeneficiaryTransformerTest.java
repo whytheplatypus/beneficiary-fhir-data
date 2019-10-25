@@ -10,6 +10,7 @@ import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.server.war.ServerTestUtils;
 import gov.cms.bfd.server.war.stu3.providers.PatientResourceProvider.IncludeIdentifiersMode;
 import java.sql.Date;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +54,40 @@ public final class BeneficiaryTransformerTest {
             new MetricRegistry(), beneficiary, IncludeIdentifiersMode.INCLUDE_HICNS_AND_MBIS);
     assertMatches(beneficiary, patient);
     Assert.assertEquals(7, patient.getIdentifier().size());
+  }
+
+  /**
+   * Verifies that {@link
+   * gov.cms.bfd.server.war.stu3.providers.BeneficiaryTransformer#transform(Beneficiary)} works as
+   * expected when run against the {@link StaticRifResource#SAMPLE_A_BENES} {@link Beneficiary} with
+   * a lastUpdated field set.
+   */
+  @Test
+  public void transformSampleARecordWithLastUpdated() {
+    Beneficiary beneficiary = loadSampleABeneficiary();
+    beneficiary.setLastUpdated(OffsetDateTime.now());
+
+    Patient patient =
+        BeneficiaryTransformer.transform(
+            new MetricRegistry(), beneficiary, IncludeIdentifiersMode.OMIT_HICNS_AND_MBIS);
+    assertMatches(beneficiary, patient);
+  }
+
+  /**
+   * Verifies that {@link
+   * gov.cms.bfd.server.war.stu3.providers.BeneficiaryTransformer#transform(Beneficiary)} works as
+   * expected when run against the {@link StaticRifResource#SAMPLE_A_BENES} {@link Beneficiary} with
+   * a lastUpdated field not set.
+   */
+  @Test
+  public void transformSampleARecordWithoutLastUpdated() {
+    Beneficiary beneficiary = loadSampleABeneficiary();
+    beneficiary.setLastUpdated(null);
+
+    Patient patient =
+        BeneficiaryTransformer.transform(
+            new MetricRegistry(), beneficiary, IncludeIdentifiersMode.OMIT_HICNS_AND_MBIS);
+    assertMatches(beneficiary, patient);
   }
 
   /**

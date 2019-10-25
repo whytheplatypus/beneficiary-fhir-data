@@ -8,6 +8,7 @@ import gov.cms.bfd.model.rif.samples.StaticRifResource;
 import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.server.war.ServerTestUtils;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,7 @@ public final class CarrierClaimTransformerTest {
             .map(r -> (CarrierClaim) r)
             .findFirst()
             .get();
+    claim.setLastUpdated(OffsetDateTime.now());
 
     ExplanationOfBenefit eob = CarrierClaimTransformer.transform(new MetricRegistry(), claim);
     assertMatches(claim, eob);

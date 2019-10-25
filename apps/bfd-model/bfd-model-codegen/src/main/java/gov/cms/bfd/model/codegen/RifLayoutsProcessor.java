@@ -773,6 +773,15 @@ public final class RifLayoutsProcessor extends AbstractProcessor {
               .returns(ParameterizedTypeName.get(Optional.class, OffsetDateTime.class))
               .build();
       headerEntityClass.addMethod(lastUpdatedGetter);
+
+      // Setter method which is useful for testing, but not needed in the main modules
+      MethodSpec lastUpdatedSetter =
+          MethodSpec.methodBuilder("setLastUpdated")
+              .addModifiers(Modifier.PUBLIC)
+              .addParameter(ParameterSpec.builder(OffsetDateTime.class, "lastUpdated").build())
+              .addStatement("this.lastUpdated = lastUpdated")
+              .returns(TypeName.VOID)
+              .build();
     }
 
     TypeSpec headerEntityFinal = headerEntityClass.build();

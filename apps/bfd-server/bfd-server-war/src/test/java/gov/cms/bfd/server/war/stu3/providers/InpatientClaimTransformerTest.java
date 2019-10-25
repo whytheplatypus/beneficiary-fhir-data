@@ -8,6 +8,7 @@ import gov.cms.bfd.model.rif.samples.StaticRifResource;
 import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.server.war.ServerTestUtils;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
@@ -39,6 +40,7 @@ public final class InpatientClaimTransformerTest {
             .map(r -> (InpatientClaim) r)
             .findFirst()
             .get();
+    claim.setLastUpdated(OffsetDateTime.now());
 
     ExplanationOfBenefit eob = InpatientClaimTransformer.transform(new MetricRegistry(), claim);
     assertMatches(claim, eob);

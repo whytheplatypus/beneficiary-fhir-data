@@ -1999,19 +1999,22 @@ final class TransformerTestUtils {
   }
 
   /**
-   * Test that the NPI
+   * Test that the resource being tested has a matching lastUpdated
    *
-   * @param expectedDateTime
-   * @param actualResource
+   * @param expectedDateTime from the entity
+   * @param actualResource that is being created by the transform
    */
   static void assertLastUpdatedEquals(
       Optional<OffsetDateTime> expectedDateTime, IAnyResource actualResource) {
-    expectedDateTime.ifPresent(
-        lastUpdated -> {
-          Assert.assertEquals(
-              "Expect lastUpdated to be equal",
-              actualResource.getMeta().getLastUpdated().toInstant(),
-              lastUpdated.toInstant());
-        });
+    if (expectedDateTime.isPresent()) {
+      OffsetDateTime lastUpdated = expectedDateTime.get();
+      Assert.assertEquals(
+          "Expect lastUpdated to be equal",
+          actualResource.getMeta().getLastUpdated().toInstant(),
+          lastUpdated.toInstant());
+    } else {
+      Assert.assertNotNull(
+          "Expect lastUpdated to be null", actualResource.getMeta().getLastUpdated());
+    }
   }
 }

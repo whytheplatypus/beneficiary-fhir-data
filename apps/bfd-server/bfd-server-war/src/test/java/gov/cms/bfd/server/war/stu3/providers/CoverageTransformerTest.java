@@ -6,6 +6,7 @@ import gov.cms.bfd.model.rif.Beneficiary;
 import gov.cms.bfd.model.rif.samples.StaticRifResource;
 import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.server.war.ServerTestUtils;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ public final class CoverageTransformerTest {
             .map(r -> (Beneficiary) r)
             .findFirst()
             .get();
+    beneficiary.setLastUpdated(OffsetDateTime.now());
 
     Coverage partACoverage =
         CoverageTransformer.transform(new MetricRegistry(), MedicareSegment.PART_A, beneficiary);
