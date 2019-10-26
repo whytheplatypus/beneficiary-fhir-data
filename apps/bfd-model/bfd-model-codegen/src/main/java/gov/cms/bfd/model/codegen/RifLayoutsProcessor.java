@@ -9,6 +9,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
@@ -782,6 +783,7 @@ public final class RifLayoutsProcessor extends AbstractProcessor {
               .addStatement("this.lastUpdated = lastUpdated")
               .returns(TypeName.VOID)
               .build();
+      headerEntityClass.addMethod(lastUpdatedSetter);
     }
 
     TypeSpec headerEntityFinal = headerEntityClass.build();
