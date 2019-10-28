@@ -1,5 +1,6 @@
 package gov.cms.bfd.server.war.stu3.providers;
 
+import ca.uhn.fhir.model.api.annotation.Description;
 import ca.uhn.fhir.model.primitive.IdDt;
 import ca.uhn.fhir.rest.annotation.IdParam;
 import ca.uhn.fhir.rest.annotation.OptionalParam;
@@ -7,6 +8,7 @@ import ca.uhn.fhir.rest.annotation.Read;
 import ca.uhn.fhir.rest.annotation.RequiredParam;
 import ca.uhn.fhir.rest.annotation.Search;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
+import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenAndListParam;
 import ca.uhn.fhir.rest.param.TokenOrListParam;
@@ -147,10 +149,13 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
    *
    * @param patient a {@link ReferenceParam} for the {@link ExplanationOfBenefit#getPatient()} to
    *     try and find matches for {@link ExplanationOfBenefit}s
+   * @param type a list of {@link ClaimType} to include in the result. Defaults to all types.
    * @param startIndex an {@link OptionalParam} for the startIndex (or offset) used to determine
    *     pagination
    * @param excludeSamhsa an {@link OptionalParam} that, if <code>"true"</code>, will use {@link
    *     SamhsaMatcher} to filter out all SAMHSA-related claims from the results
+   * @param lastUpdated an {@link OptionalParam} that specifies a date range for the lastUpdated
+   *     field.
    * @param requestDetails a {@link RequestDetails} containing the details of the request URL, used
    *     to parse out pagination values
    * @return Returns a {@link Bundle} of {@link ExplanationOfBenefit}s, which may contain multiple
@@ -158,10 +163,21 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
    */
   @Search
   public Bundle findByPatient(
-      @RequiredParam(name = ExplanationOfBenefit.SP_PATIENT) ReferenceParam patient,
-      @OptionalParam(name = "type") TokenAndListParam type,
-      @OptionalParam(name = "startIndex") String startIndex,
-      @OptionalParam(name = "excludeSAMHSA") String excludeSamhsa,
+      @RequiredParam(name = ExplanationOfBenefit.SP_PATIENT)
+          @Description(shortDefinition = "The patient identifier to search for")
+          ReferenceParam patient,
+      @OptionalParam(name = "type")
+          @Description(shortDefinition = "A list of claim types to include")
+          TokenAndListParam type,
+      @OptionalParam(name = "startIndex")
+          @Description(shortDefinition = "The offset used for result pagination")
+          String startIndex,
+      @OptionalParam(name = "excludeSAMHSA")
+          @Description(shortDefinition = "If true, exclude all SAMHSA-related resources")
+          String excludeSamhsa,
+      @OptionalParam(name = "_lastUpdated")
+          @Description(shortDefinition = "Include resources last updated in the given range")
+          DateRangeParam lastUpdated,
       RequestDetails requestDetails) {
     /*
      * startIndex is an optional parameter here because it must be declared in the
@@ -182,31 +198,39 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
     if (types.contains(ClaimType.CARRIER))
       eobs.addAll(
           transformToEobs(
-              ClaimType.CARRIER, findClaimTypeByPatient(ClaimType.CARRIER, beneficiaryId)));
+              ClaimType.CARRIER,
+              findClaimTypeByPatient(ClaimType.CARRIER, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.DME))
       eobs.addAll(
-          transformToEobs(ClaimType.DME, findClaimTypeByPatient(ClaimType.DME, beneficiaryId)));
+          transformToEobs(
+              ClaimType.DME, findClaimTypeByPatient(ClaimType.DME, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.HHA))
       eobs.addAll(
-          transformToEobs(ClaimType.HHA, findClaimTypeByPatient(ClaimType.HHA, beneficiaryId)));
+          transformToEobs(
+              ClaimType.HHA, findClaimTypeByPatient(ClaimType.HHA, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.HOSPICE))
       eobs.addAll(
           transformToEobs(
-              ClaimType.HOSPICE, findClaimTypeByPatient(ClaimType.HOSPICE, beneficiaryId)));
+              ClaimType.HOSPICE,
+              findClaimTypeByPatient(ClaimType.HOSPICE, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.INPATIENT))
       eobs.addAll(
           transformToEobs(
-              ClaimType.INPATIENT, findClaimTypeByPatient(ClaimType.INPATIENT, beneficiaryId)));
+              ClaimType.INPATIENT,
+              findClaimTypeByPatient(ClaimType.INPATIENT, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.OUTPATIENT))
       eobs.addAll(
           transformToEobs(
-              ClaimType.OUTPATIENT, findClaimTypeByPatient(ClaimType.OUTPATIENT, beneficiaryId)));
+              ClaimType.OUTPATIENT,
+              findClaimTypeByPatient(ClaimType.OUTPATIENT, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.PDE))
       eobs.addAll(
-          transformToEobs(ClaimType.PDE, findClaimTypeByPatient(ClaimType.PDE, beneficiaryId)));
+          transformToEobs(
+              ClaimType.PDE, findClaimTypeByPatient(ClaimType.PDE, beneficiaryId, lastUpdated)));
     if (types.contains(ClaimType.SNF))
       eobs.addAll(
-          transformToEobs(ClaimType.SNF, findClaimTypeByPatient(ClaimType.SNF, beneficiaryId)));
+          transformToEobs(
+              ClaimType.SNF, findClaimTypeByPatient(ClaimType.SNF, beneficiaryId, lastUpdated)));
 
     if (Boolean.parseBoolean(excludeSamhsa) == true) filterSamhsa(eobs);
 
@@ -251,10 +275,12 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
   /**
    * @param claimType the {@link ClaimType} to find
    * @param patientId the {@link Beneficiary#getBeneficiaryId()} to filter by
+   * @param
    * @return the matching claim/event entities
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  private <T> List<T> findClaimTypeByPatient(ClaimType claimType, String patientId) {
+  private <T> List<T> findClaimTypeByPatient(
+      ClaimType claimType, String patientId, DateRangeParam lastUpdated) {
     CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
     CriteriaQuery criteria = criteriaBuilder.createQuery((Class) claimType.getEntityClass());
     Root root = criteria.from(claimType.getEntityClass());
