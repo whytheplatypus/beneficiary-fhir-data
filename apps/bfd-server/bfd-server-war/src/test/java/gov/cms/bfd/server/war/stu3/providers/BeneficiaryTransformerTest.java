@@ -9,9 +9,9 @@ import gov.cms.bfd.model.rif.samples.StaticRifResource;
 import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.server.war.ServerTestUtils;
 import gov.cms.bfd.server.war.stu3.providers.PatientResourceProvider.IncludeIdentifiersMode;
-import java.sql.Date;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -65,7 +65,7 @@ public final class BeneficiaryTransformerTest {
   @Test
   public void transformSampleARecordWithLastUpdated() {
     Beneficiary beneficiary = loadSampleABeneficiary();
-    beneficiary.setLastUpdated(OffsetDateTime.now());
+    beneficiary.setLastUpdated(Date.from(Instant.now()));
 
     Patient patient =
         BeneficiaryTransformer.transform(
@@ -172,7 +172,7 @@ public final class BeneficiaryTransformerTest {
     Assert.assertEquals(beneficiary.getStateCode(), patient.getAddress().get(0).getState());
     Assert.assertEquals(beneficiary.getCountyCode(), patient.getAddress().get(0).getDistrict());
     Assert.assertEquals(beneficiary.getPostalCode(), patient.getAddress().get(0).getPostalCode());
-    Assert.assertEquals(Date.valueOf(beneficiary.getBirthDate()), patient.getBirthDate());
+    Assert.assertEquals(java.sql.Date.valueOf(beneficiary.getBirthDate()), patient.getBirthDate());
     if (beneficiary.getSex() == Sex.MALE.getCode())
       Assert.assertEquals(
           AdministrativeGender.MALE.toString(), patient.getGender().toString().trim());

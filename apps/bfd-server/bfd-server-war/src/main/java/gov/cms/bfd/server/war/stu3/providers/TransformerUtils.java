@@ -45,9 +45,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -3108,9 +3106,9 @@ public final class TransformerUtils {
    * @param resource is the FHIR resource to set LastUp
    * @param lastUpdated is the lastUpdated value from the entity
    */
-  public static void setLastUpdated(IAnyResource resource, Optional<OffsetDateTime> lastUpdated) {
-    Instant lastUpdatedInstant =
-        lastUpdated.orElse(TransformerConstants.DEFAULT_LAST_UPDATED).toInstant();
-    resource.getMeta().setLastUpdated(Date.from(lastUpdatedInstant));
+  public static void setLastUpdated(IAnyResource resource, Optional<Date> lastUpdated) {
+    resource
+        .getMeta()
+        .setLastUpdated(lastUpdated.orElse(TransformerConstants.DEFAULT_LAST_UPDATED));
   }
 }

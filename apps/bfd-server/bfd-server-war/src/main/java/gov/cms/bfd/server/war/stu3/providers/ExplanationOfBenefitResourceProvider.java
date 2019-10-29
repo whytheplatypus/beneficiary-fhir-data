@@ -34,6 +34,7 @@ import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.ExplanationOfBenefit;
@@ -286,8 +287,19 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
     Root root = criteria.from(claimType.getEntityClass());
     claimType.getEntityLazyAttributes().stream().forEach(a -> root.fetch(a));
     criteria.select(root).distinct(true);
-    criteria.where(
-        criteriaBuilder.equal(root.get(claimType.getEntityBeneficiaryIdAttribute()), patientId));
+
+    // Search for a beneficiary's records. Use lastUpdated if present
+    Predicate wherePredicate =
+        criteriaBuilder.equal(root.get(claimType.getEntityBeneficiaryIdAttribute()), patientId);
+    if (lastUpdated != null && !lastUpdated.isEmpty()) {
+      Predicate lastUpdatedPredicate =
+          criteriaBuilder.between(
+              root.get("lastUpdated"),
+              lastUpdated.getLowerBoundAsInstant(),
+              lastUpdated.getUpperBoundAsInstant());
+      wherePredicate = criteriaBuilder.and(wherePredicate, lastUpdatedPredicate);
+    }
+    criteria.where(wherePredicate);
 
     List claimEntities = null;
     Long eobsByBeneIdQueryNanoSeconds = null;

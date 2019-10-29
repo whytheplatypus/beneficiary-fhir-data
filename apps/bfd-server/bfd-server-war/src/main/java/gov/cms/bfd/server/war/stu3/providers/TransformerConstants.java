@@ -4,7 +4,9 @@ import gov.cms.bfd.model.codebook.data.CcwCodebookVariable;
 import gov.cms.bfd.model.codebook.model.Variable;
 import gov.cms.bfd.model.rif.Beneficiary;
 import gov.cms.bfd.model.rif.CarrierClaimColumn;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Date;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.Coverage;
 import org.hl7.fhir.dstu3.model.Coverage.GroupComponent;
@@ -214,8 +216,8 @@ public final class TransformerConstants {
       "http://hl7.org/fhir/sid/us-mbi";
 
   /** The timestamp used for entities that do not have lastUpdated value. */
-  public static final OffsetDateTime DEFAULT_LAST_UPDATED =
-      OffsetDateTime.parse("2019-10-21T00:00:00.000Z");
+  public static final Date DEFAULT_LAST_UPDATED =
+      Date.from(LocalDateTime.of(2019, 11, 1, 0, 0).toInstant(ZoneOffset.UTC));
 
   /**
    * The {@link #CODING_BBAPI_BENE_HICN_HASH} used in earlier versions of the API, which is still

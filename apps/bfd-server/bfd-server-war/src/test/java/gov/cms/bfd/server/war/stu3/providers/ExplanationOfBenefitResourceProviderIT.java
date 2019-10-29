@@ -5,6 +5,7 @@ import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.gclient.StringClientParam;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
+import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import gov.cms.bfd.model.rif.Beneficiary;
@@ -22,8 +23,11 @@ import gov.cms.bfd.model.rif.samples.StaticRifResourceGroup;
 import gov.cms.bfd.pipeline.rif.load.LoadAppOptions;
 import gov.cms.bfd.pipeline.rif.load.RifLoaderTestUtils;
 import gov.cms.bfd.server.war.ServerTestUtils;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -441,8 +445,8 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB.
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB.
    *
    * @throws FHIRException (indicates test failure)
    */
@@ -569,9 +573,9 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with paging. This test uses
-   * a count of 2 to verify our code will not run into an IndexOutOfBoundsException on odd bundle
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with paging. This test uses a
+   * count of 2 to verify our code will not run into an IndexOutOfBoundsException on odd bundle
    * sizes.
    *
    * @throws FHIRException (indicates test failure)
@@ -734,9 +738,9 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with paging. This test uses
-   * a count of 3 to verify our code will not run into an IndexOutOfBoundsException on even bundle
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with paging. This test uses a
+   * count of 3 to verify our code will not run into an IndexOutOfBoundsException on even bundle
    * sizes.
    *
    * @throws FHIRException (indicates test failure)
@@ -779,8 +783,8 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with paging, providing the
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with paging, providing the
    * startIndex but not the pageSize (count).
    *
    * @throws FHIRException (indicates test failure)
@@ -848,9 +852,8 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with paging on a page size
-   * of 0.
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with paging on a page size of 0.
    *
    * @throws FHIRException (indicates test failure)
    */
@@ -986,9 +989,9 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with a page size of 50 with
-   * fewer (8) results.
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with a page size of 50 with fewer
+   * (8) results.
    *
    * @throws FHIRException (indicates test failure)
    */
@@ -1118,10 +1121,10 @@ public final class ExplanationOfBenefitResourceProviderIT {
 
   /**
    * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient(ca.uhn.fhir.rest.param.ReferenceParam)}
-   * works as expected for a {@link Patient} that does exist in the DB, with paging, using negative
-   * values for page size and start index parameters. This test expects to receive a
-   * BadRequestException, as negative values should result in an HTTP 400.
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as expected for a {@link Patient} that does exist in the DB, with paging, using negative values
+   * for page size and start index parameters. This test expects to receive a BadRequestException,
+   * as negative values should result in an HTTP 400.
    *
    * @throws FHIRException (indicates test failure)
    */
@@ -1443,6 +1446,91 @@ public final class ExplanationOfBenefitResourceProviderIT {
             .get();
     PartDEventTransformerTest.assertMatches(
         partDEvent, filterToClaimType(searchResults, ClaimType.PDE).get(0));
+  }
+
+  /**
+   * Verifies that {@link
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as with a lastUpdated parameter before yesterday
+   *
+   * @throws FHIRException (indicates test failure)
+   */
+  @Test
+  public void searchEobBeforeYesterday() throws FHIRException {
+    List<Object> loadedRecords =
+        ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
+    IGenericClient fhirClient = ServerTestUtils.createFhirClient();
+
+    // Get beneficiary information
+    Beneficiary beneficiary =
+        loadedRecords.stream()
+            .filter(r -> r instanceof Beneficiary)
+            .map(r -> (Beneficiary) r)
+            .findFirst()
+            .get();
+
+    // Search with lastUpdated < now() - 1day
+    Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
+    Date lastYear = Date.from(Instant.now().minus(365, ChronoUnit.DAYS));
+    DateRangeParam lessThanYesterday = new DateRangeParam(lastYear, yesterday);
+    Bundle searchResultsBefore =
+        fhirClient
+            .search()
+            .forResource(ExplanationOfBenefit.class)
+            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
+            .lastUpdated(lessThanYesterday)
+            .returnBundle(Bundle.class)
+            .execute();
+    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBefore.getTotal());
+  }
+
+  /**
+   * Verifies that {@link
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as with a lastUpdated parameter after yesterday.
+   *
+   * @throws FHIRException (indicates test failure)
+   */
+  @Test
+  public void searchEobAfterYesterday() throws FHIRException {
+    List<Object> loadedRecords =
+        ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
+    IGenericClient fhirClient = ServerTestUtils.createFhirClient();
+
+    // Get beneficiary information
+    Beneficiary beneficiary =
+        loadedRecords.stream()
+            .filter(r -> r instanceof Beneficiary)
+            .map(r -> (Beneficiary) r)
+            .findFirst()
+            .get();
+
+    // Search without last Updated
+    Bundle searchResults =
+        fhirClient
+            .search()
+            .forResource(ExplanationOfBenefit.class)
+            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
+            .returnBundle(Bundle.class)
+            .execute();
+    Assert.assertTrue("Expected count to be > 0", searchResults.getTotal() > 0);
+
+    // Search with lastUpdated range between yesterday and now
+    Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
+    Date now = Date.from(Instant.now());
+    DateRangeParam afterYesterday = new DateRangeParam(yesterday, now);
+    Bundle searchResultsAfter =
+        fhirClient
+            .search()
+            .forResource(ExplanationOfBenefit.class)
+            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
+            .lastUpdated(afterYesterday)
+            .returnBundle(Bundle.class)
+            .execute();
+    Assert.assertEquals(
+        "Expected count to be equal without lastUpdated",
+        searchResults.getTotal(),
+        searchResultsAfter.getTotal());
   }
 
   /** Ensures that {@link ServerTestUtils#cleanDatabaseServer()} is called after each test case. */
