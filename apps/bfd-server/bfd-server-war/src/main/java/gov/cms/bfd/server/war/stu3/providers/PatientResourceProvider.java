@@ -45,8 +45,7 @@ import org.springframework.stereotype.Component;
 @Component
 public final class PatientResourceProvider implements IResourceProvider {
   /**
-   * The {@link Identifier#getSystem()} values that are supported by {@link
-   * #searchByIdentifier(TokenParam)}.
+   * The {@link Identifier#getSystem()} values that are supported by {@link #searchByIdentifier}.
    */
   private static final List<String> SUPPORTED_HICN_HASH_IDENTIFIER_SYSTEMS =
       Arrays.asList(
@@ -181,7 +180,7 @@ public final class PatientResourceProvider implements IResourceProvider {
     PagingArguments pagingArgs = new PagingArguments(requestDetails);
     Bundle bundle =
         TransformerUtils.createBundle(
-            pagingArgs, "/Patient?", Patient.SP_RES_ID, logicalId.getValue(), patients);
+            pagingArgs, null, "/Patient?", Patient.SP_RES_ID, logicalId.getValue(), patients);
     return bundle;
   }
 
@@ -231,7 +230,7 @@ public final class PatientResourceProvider implements IResourceProvider {
     PagingArguments pagingArgs = new PagingArguments(requestDetails);
     Bundle bundle =
         TransformerUtils.createBundle(
-            pagingArgs, "/Patient?", Patient.SP_IDENTIFIER, identifier.getValue(), patients);
+            pagingArgs, null, "/Patient?", Patient.SP_IDENTIFIER, identifier.getValue(), patients);
     return bundle;
   }
 

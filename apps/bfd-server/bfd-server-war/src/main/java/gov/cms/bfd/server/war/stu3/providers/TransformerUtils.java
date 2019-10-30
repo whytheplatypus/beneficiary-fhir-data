@@ -3,6 +3,8 @@ package gov.cms.bfd.server.war.stu3.providers;
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import ca.uhn.fhir.model.primitive.IdDt;
 import ca.uhn.fhir.rest.api.Constants;
+import ca.uhn.fhir.rest.param.DateParam;
+import ca.uhn.fhir.rest.param.DateRangeParam;
 import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;
 import com.codahale.metrics.MetricRegistry;
 import com.justdavis.karl.misc.exceptions.BadCodeMonkeyException;
@@ -2924,6 +2926,7 @@ public final class TransformerUtils {
   /**
    * @param pagingArgs a {@link PagingArguments} used to determine if paging is requested and the
    *     parameters for doing so
+   * @param lastUpdated the {@link DateRangeParam} used as predicate for the search. Maybe null.
    * @param resourceType the {@link String} the resource being provided by the paging link
    * @param identifier the {@link String} field the search is being performed on
    * @param value the {@link String} value of the identifier being searched for
@@ -2934,6 +2937,7 @@ public final class TransformerUtils {
    */
   public static Bundle createBundle(
       PagingArguments pagingArgs,
+      DateRangeParam lastUpdated,
       String resourceType,
       String identifier,
       String value,
@@ -2951,7 +2955,7 @@ public final class TransformerUtils {
           resources.subList(pagingArgs.getStartIndex(), endIndex);
       bundle = TransformerUtils.addResourcesToBundle(bundle, resourcesSubList);
       TransformerUtils.addPagingLinks(
-          pagingArgs, bundle, resourceType, identifier, value, resources.size());
+          pagingArgs, bundle, resourceType, identifier, value, resources.size(), lastUpdated);
     } else {
       bundle = TransformerUtils.addResourcesToBundle(bundle, resources);
     }
@@ -2992,7 +2996,8 @@ public final class TransformerUtils {
       String resource,
       String searchByDesc,
       String identifier,
-      int numTotalResults) {
+      int numTotalResults,
+      DateRangeParam lastUpdated) {
 
     Integer pageSize = pagingArgs.getPageSize();
     Integer startIndex = pagingArgs.getStartIndex();
@@ -3002,7 +3007,8 @@ public final class TransformerUtils {
         new BundleLinkComponent()
             .setRelation(Constants.LINK_FIRST)
             .setUrl(
-                createPagingLink(serverBase + resource, searchByDesc, identifier, 0, pageSize)));
+                createPagingLink(
+                    serverBase + resource, searchByDesc, identifier, 0, pageSize, lastUpdated)));
 
     if (startIndex + pageSize < numTotalResults) {
       bundle.addLink(
@@ -3014,7 +3020,8 @@ public final class TransformerUtils {
                       searchByDesc,
                       identifier,
                       startIndex + pageSize,
-                      pageSize)));
+                      pageSize,
+                      lastUpdated)));
     }
 
     if (startIndex > 0) {
@@ -3027,7 +3034,8 @@ public final class TransformerUtils {
                       searchByDesc,
                       identifier,
                       Math.max(startIndex - pageSize, 0),
-                      pageSize)));
+                      pageSize,
+                      lastUpdated)));
     }
 
     /*
@@ -3045,17 +3053,39 @@ public final class TransformerUtils {
             .setRelation(Constants.LINK_LAST)
             .setUrl(
                 createPagingLink(
-                    serverBase + resource, searchByDesc, identifier, lastIndex, pageSize)));
+                    serverBase + resource,
+                    searchByDesc,
+                    identifier,
+                    lastIndex,
+                    pageSize,
+                    lastUpdated)));
   }
 
   /** @return Returns the URL string for a paging link. */
   private static String createPagingLink(
-      String baseURL, String descriptor, String id, int startIndex, int theCount) {
+      String baseURL,
+      String descriptor,
+      String id,
+      int startIndex,
+      int theCount,
+      DateRangeParam lastUpdated) {
     StringBuilder b = new StringBuilder();
     b.append(baseURL);
     b.append(Constants.PARAM_COUNT + "=" + theCount);
     b.append("&startIndex=" + startIndex);
     b.append("&" + descriptor + "=" + id);
+
+    // Add the lastUpdated parameters if present
+    if (lastUpdated != null) {
+      DateParam lowerBound = lastUpdated.getLowerBound();
+      if (lowerBound != null && !lowerBound.isEmpty()) {
+        b.append("&lastUpdated=" + lowerBound.getValueAsString());
+      }
+      DateParam upperBound = lastUpdated.getLowerBound();
+      if (upperBound != null && !upperBound.isEmpty()) {
+        b.append("&lastUpdated=" + upperBound.getValueAsString());
+      }
+    }
 
     return b.toString();
   }

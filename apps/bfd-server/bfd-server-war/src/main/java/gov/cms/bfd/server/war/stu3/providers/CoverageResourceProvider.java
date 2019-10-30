@@ -138,7 +138,12 @@ public final class CoverageResourceProvider implements IResourceProvider {
     PagingArguments pagingArgs = new PagingArguments(requestDetails);
     Bundle bundle =
         TransformerUtils.createBundle(
-            pagingArgs, "/Coverage?", Coverage.SP_BENEFICIARY, beneficiary.getIdPart(), coverages);
+            pagingArgs,
+            null,
+            "/Coverage?",
+            Coverage.SP_BENEFICIARY,
+            beneficiary.getIdPart(),
+            coverages);
     return bundle;
   }
 

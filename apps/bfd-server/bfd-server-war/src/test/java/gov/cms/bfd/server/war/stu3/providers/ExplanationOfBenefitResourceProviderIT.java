@@ -41,6 +41,7 @@ import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
 import org.hl7.fhir.dstu3.model.ExplanationOfBenefit;
 import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.exceptions.FHIRException;
+import org.hl7.fhir.instance.model.api.IBaseBundle;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.junit.After;
 import org.junit.Assert;
@@ -1469,19 +1470,23 @@ public final class ExplanationOfBenefitResourceProviderIT {
             .findFirst()
             .get();
 
-    // Search with lastUpdated < now() - 1day
+    // Search with lastYear < lastUpdated < now() - 1day
     Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
     Date lastYear = Date.from(Instant.now().minus(365, ChronoUnit.DAYS));
-    DateRangeParam lessThanYesterday = new DateRangeParam(lastYear, yesterday);
-    Bundle searchResultsBefore =
+    DateRangeParam inTheLastYear = new DateRangeParam(lastYear, yesterday);
+    Bundle searchResultsBeforeRange =
         fhirClient
             .search()
             .forResource(ExplanationOfBenefit.class)
             .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
-            .lastUpdated(lessThanYesterday)
+            .lastUpdated(inTheLastYear)
             .returnBundle(Bundle.class)
             .execute();
-    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBefore.getTotal());
+    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBeforeRange.getTotal());
+
+    // Check the self link
+    String selfLink = searchResultsBeforeRange.getLink(IBaseBundle.LINK_SELF).getUrl();
+    Assert.assertTrue(selfLink.contains("lastUpdated"));
   }
 
   /**
@@ -1531,6 +1536,56 @@ public final class ExplanationOfBenefitResourceProviderIT {
         "Expected count to be equal without lastUpdated",
         searchResults.getTotal(),
         searchResultsAfter.getTotal());
+  }
+
+  /**
+   * Verifies that {@link
+   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
+   * as with a lastUpdated parameter after yesterday.
+   *
+   * @throws FHIRException (indicates test failure)
+   */
+  @Test
+  public void searchEobAfterWithPagination() throws FHIRException {
+    List<Object> loadedRecords =
+        ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
+    IGenericClient fhirClient = ServerTestUtils.createFhirClient();
+
+    // Get beneficiary information
+    Beneficiary beneficiary =
+        loadedRecords.stream()
+            .filter(r -> r instanceof Beneficiary)
+            .map(r -> (Beneficiary) r)
+            .findFirst()
+            .get();
+
+    // Search with lastUpdated range between yesterday and now
+    int expectedCount = 3;
+    Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
+    Date now = Date.from(Instant.now());
+    DateRangeParam afterYesterday = new DateRangeParam(yesterday, now);
+    Bundle searchResultsAfter =
+        fhirClient
+            .search()
+            .forResource(ExplanationOfBenefit.class)
+            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
+            .lastUpdated(afterYesterday)
+            .count(expectedCount)
+            .returnBundle(Bundle.class)
+            .execute();
+    Assert.assertEquals(
+        "Expected number resources return to be equal to count",
+        expectedCount,
+        searchResultsAfter.getEntry().size());
+
+    // Check next bundle
+    String nextLink = searchResultsAfter.getLink(IBaseBundle.LINK_NEXT).getUrl();
+    Assert.assertTrue(nextLink.contains("lastUpdated"));
+    Bundle nextResults = fhirClient.search().byUrl(nextLink).returnBundle(Bundle.class).execute();
+    Assert.assertEquals(
+        "Expected number resources return to be equal to count",
+        expectedCount,
+        nextResults.getEntry().size());
   }
 
   /** Ensures that {@link ServerTestUtils#cleanDatabaseServer()} is called after each test case. */

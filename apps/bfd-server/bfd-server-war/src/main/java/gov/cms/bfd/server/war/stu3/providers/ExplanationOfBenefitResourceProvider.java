@@ -241,6 +241,7 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
     Bundle bundle =
         TransformerUtils.createBundle(
             pagingArgs,
+            lastUpdated,
             "/ExplanationOfBenefit?",
             ExplanationOfBenefit.SP_PATIENT,
             beneficiaryId,
