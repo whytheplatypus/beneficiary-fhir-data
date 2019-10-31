@@ -9,6 +9,7 @@ import ca.uhn.fhir.rest.annotation.RequiredParam;
 import ca.uhn.fhir.rest.annotation.Search;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.param.DateRangeParam;
+import ca.uhn.fhir.rest.param.ParamPrefixEnum;
 import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenAndListParam;
 import ca.uhn.fhir.rest.param.TokenOrListParam;
@@ -20,6 +21,7 @@ import com.codahale.metrics.Timer;
 import gov.cms.bfd.model.rif.Beneficiary;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -34,12 +36,15 @@ import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.ExplanationOfBenefit;
 import org.hl7.fhir.dstu3.model.IdType;
 import org.hl7.fhir.instance.model.api.IBaseResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,6 +59,9 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
    * application.
    */
   private static final Pattern EOB_ID_PATTERN = Pattern.compile("(\\p{Alpha}+)-(\\p{Alnum}+)");
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ExplanationOfBenefitResourceProvider.class);
 
   private EntityManager entityManager;
   private MetricRegistry metricRegistry;
@@ -293,12 +301,8 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
     Predicate wherePredicate =
         criteriaBuilder.equal(root.get(claimType.getEntityBeneficiaryIdAttribute()), patientId);
     if (lastUpdated != null && !lastUpdated.isEmpty()) {
-      Predicate lastUpdatedPredicate =
-          criteriaBuilder.between(
-              root.get("lastUpdated"),
-              lastUpdated.getLowerBoundAsInstant(),
-              lastUpdated.getUpperBoundAsInstant());
-      wherePredicate = criteriaBuilder.and(wherePredicate, lastUpdatedPredicate);
+      Predicate predicate = createLastUpdatedPredicate(criteriaBuilder, root, lastUpdated);
+      wherePredicate = criteriaBuilder.and(wherePredicate, predicate);
     }
     criteria.where(wherePredicate);
 
@@ -349,6 +353,79 @@ public final class ExplanationOfBenefitResourceProvider implements IResourceProv
     while (eobsIter.hasNext()) {
       ExplanationOfBenefit eob = (ExplanationOfBenefit) eobsIter.next();
       if (samhsaMatcher.test(eob)) eobsIter.remove();
+    }
+  }
+
+  /**
+   * Create a predicate for the lastUpdate field based on the passed range.
+   *
+   * @param criteriaBuilder to use
+   * @param root to use
+   * @param range to base the predicate on
+   * @return a predicate on the lastUpdated field
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private Predicate createLastUpdatedPredicate(
+      CriteriaBuilder criteriaBuilder, Root root, DateRangeParam range) {
+    Date lowerBound = range.getLowerBoundAsInstant();
+    Date upperBound = range.getUpperBoundAsInstant();
+    Path lastUpdatedPath = root.get("lastUpdated");
+
+    Predicate lowerBoundPredicate = null;
+    if (lowerBound != null) {
+      switch (range.getLowerBound().getPrefix()) {
+        case GREATERTHAN:
+          lowerBoundPredicate = criteriaBuilder.greaterThan(lastUpdatedPath, lowerBound);
+          break;
+        case EQUAL:
+        case GREATERTHAN_OR_EQUALS:
+          lowerBoundPredicate = criteriaBuilder.greaterThanOrEqualTo(lastUpdatedPath, lowerBound);
+          break;
+        case STARTS_AFTER:
+        case APPROXIMATE:
+        case ENDS_BEFORE:
+        case LESSTHAN:
+        case LESSTHAN_OR_EQUALS:
+        case NOT_EQUAL:
+        default:
+          throw new IllegalArgumentException("_lastUpdate lower bound has invalid prefix");
+      }
+    }
+
+    Predicate upperBoundPredicate = null;
+    if (upperBound != null) {
+      switch (range.getUpperBound().getPrefix()) {
+        case EQUAL:
+          if (range.getLowerBound().getPrefix() == ParamPrefixEnum.EQUAL) {
+            upperBoundPredicate = criteriaBuilder.lessThanOrEqualTo(lastUpdatedPath, upperBound);
+          } else {
+            throw new IllegalArgumentException(
+                "_lastUpdate lower bound should have an equal prefix when the upper bound does");
+          }
+          break;
+        case LESSTHAN:
+          upperBoundPredicate = criteriaBuilder.lessThan(lastUpdatedPath, upperBound);
+          break;
+        case LESSTHAN_OR_EQUALS:
+          upperBoundPredicate = criteriaBuilder.lessThanOrEqualTo(lastUpdatedPath, upperBound);
+          break;
+        case ENDS_BEFORE:
+        case APPROXIMATE:
+        case STARTS_AFTER:
+        case GREATERTHAN:
+        case GREATERTHAN_OR_EQUALS:
+        case NOT_EQUAL:
+        default:
+          throw new IllegalArgumentException("_lastUpdate upper bound has invalid prefix");
+      }
+    }
+
+    if (lowerBoundPredicate != null && upperBoundPredicate != null) {
+      return criteriaBuilder.and(lowerBoundPredicate, upperBoundPredicate);
+    } else if (lowerBoundPredicate != null) {
+      return lowerBoundPredicate;
+    } else {
+      return upperBoundPredicate;
     }
   }
 

@@ -1,5 +1,6 @@
 package gov.cms.bfd.server.war.stu3.providers;
 
+import ca.uhn.fhir.model.primitive.DateTimeDt;
 import ca.uhn.fhir.model.primitive.IdDt;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
@@ -1487,6 +1488,18 @@ public final class ExplanationOfBenefitResourceProviderIT {
     // Check the self link
     String selfLink = searchResultsBeforeRange.getLink(IBaseBundle.LINK_SELF).getUrl();
     Assert.assertTrue(selfLink.contains("lastUpdated"));
+
+    // Search with < yesterday
+    DateRangeParam beforeYesterday = new DateRangeParam().setUpperBoundInclusive(yesterday);
+    Bundle searchResultsBeforeYesterday =
+        fhirClient
+            .search()
+            .forResource(ExplanationOfBenefit.class)
+            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
+            .lastUpdated(beforeYesterday)
+            .returnBundle(Bundle.class)
+            .execute();
+    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBeforeYesterday.getTotal());
   }
 
   /**
@@ -1494,10 +1507,13 @@ public final class ExplanationOfBenefitResourceProviderIT {
    * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
    * as with a lastUpdated parameter after yesterday.
    *
+   * <p>See https://www.hl7.org/fhir/search.html#lastUpdated for explanation of possible types
+   * lastUpdatedQueries
+   *
    * @throws FHIRException (indicates test failure)
    */
   @Test
-  public void searchEobAfterYesterday() throws FHIRException {
+  public void searchEobWithLastUpdated() throws FHIRException {
     List<Object> loadedRecords =
         ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
     IGenericClient fhirClient = ServerTestUtils.createFhirClient();
@@ -1510,32 +1526,27 @@ public final class ExplanationOfBenefitResourceProviderIT {
             .findFirst()
             .get();
 
-    // Search without last Updated
-    Bundle searchResults =
-        fhirClient
-            .search()
-            .forResource(ExplanationOfBenefit.class)
-            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
-            .returnBundle(Bundle.class)
-            .execute();
-    Assert.assertTrue("Expected count to be > 0", searchResults.getTotal() > 0);
+    // Build up a list of lastUpdatedURLs that return > all values values
+    String nowDateTime = DateTimeDt.withCurrentTime().getValueAsString();
+    String earlyDateTime = "2019-10-01T00:00:00-04:00";
+    List<String> allUrls =
+        Arrays.asList(
+            "_lastUpdated=gt" + earlyDateTime,
+            "_lastUpdated=ge" + earlyDateTime,
+            "_lastUpdated=le" + nowDateTime,
+            "_lastUpdated=ge" + earlyDateTime + "&_lastUpdated=le" + nowDateTime,
+            "_lastUpdated=eq" + nowDateTime);
+    testLastUpdatedUrls(fhirClient, beneficiary.getBeneficiaryId(), allUrls, 8);
 
-    // Search with lastUpdated range between yesterday and now
-    Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
-    Date now = Date.from(Instant.now());
-    DateRangeParam afterYesterday = new DateRangeParam(yesterday, now);
-    Bundle searchResultsAfter =
-        fhirClient
-            .search()
-            .forResource(ExplanationOfBenefit.class)
-            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
-            .lastUpdated(afterYesterday)
-            .returnBundle(Bundle.class)
-            .execute();
-    Assert.assertEquals(
-        "Expected count to be equal without lastUpdated",
-        searchResults.getTotal(),
-        searchResultsAfter.getTotal());
+    // Empty searches
+    List<String> emptyUrls =
+        Arrays.asList(
+            "_lastUpdated=lt" + earlyDateTime,
+            "_lastUpdated=le" + earlyDateTime,
+            "_lastUpdated=lt" + nowDateTime,
+            "_lastUpdated=gt" + earlyDateTime + "&_lastUpdated=lt" + nowDateTime,
+            "_lastUpdated=eq" + earlyDateTime);
+    testLastUpdatedUrls(fhirClient, beneficiary.getBeneficiaryId(), emptyUrls, 0);
   }
 
   /**
@@ -1577,6 +1588,10 @@ public final class ExplanationOfBenefitResourceProviderIT {
         "Expected number resources return to be equal to count",
         expectedCount,
         searchResultsAfter.getEntry().size());
+
+    // Check self url
+    String selfLink = searchResultsAfter.getLink(IBaseBundle.LINK_SELF).getUrl();
+    Assert.assertTrue(selfLink.contains("lastUpdated"));
 
     // Check next bundle
     String nextLink = searchResultsAfter.getLink(IBaseBundle.LINK_NEXT).getUrl();
@@ -1633,5 +1648,22 @@ public final class ExplanationOfBenefitResourceProviderIT {
                 })
             .collect(Collectors.toList());
     return results;
+  }
+
+  private void testLastUpdatedUrls(
+      IGenericClient fhirClient, String id, List<String> urls, int expectedValue) {
+    String baseResourceUrl =
+        "ExplanationOfBenefit?patient=Patient%2F" + id + "&_format=application%2Fjson%2Bfhir";
+
+    // Search for each lastUpdated value
+    for (String lastUpdatedValue : urls) {
+      String theSearchUrl = baseResourceUrl + "&" + lastUpdatedValue;
+      Bundle searchResults =
+          fhirClient.search().byUrl(theSearchUrl).returnBundle(Bundle.class).execute();
+      Assert.assertEquals(
+          String.format("Expected %s to not filter any resources", lastUpdatedValue),
+          expectedValue,
+          searchResults.getTotal());
+    }
   }
 }

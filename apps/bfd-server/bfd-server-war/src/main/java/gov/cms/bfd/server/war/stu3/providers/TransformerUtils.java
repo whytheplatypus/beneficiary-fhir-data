@@ -3079,11 +3079,21 @@ public final class TransformerUtils {
     if (lastUpdated != null) {
       DateParam lowerBound = lastUpdated.getLowerBound();
       if (lowerBound != null && !lowerBound.isEmpty()) {
-        b.append("&lastUpdated=" + lowerBound.getValueAsString());
+        b.append(
+            "&"
+                + Constants.PARAM_LASTUPDATED
+                + "="
+                + lowerBound.getPrefix().getValue()
+                + lowerBound.getValueAsString());
       }
-      DateParam upperBound = lastUpdated.getLowerBound();
+      DateParam upperBound = lastUpdated.getUpperBound();
       if (upperBound != null && !upperBound.isEmpty()) {
-        b.append("&lastUpdated=" + upperBound.getValueAsString());
+        b.append(
+            "&"
+                + Constants.PARAM_LASTUPDATED
+                + "="
+                + upperBound.getPrefix().getValue()
+                + upperBound.getValueAsString());
       }
     }
 
