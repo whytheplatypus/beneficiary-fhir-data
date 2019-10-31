@@ -151,7 +151,7 @@ public final class CoverageResourceProvider implements IResourceProvider {
     Bundle bundle =
         TransformerUtils.createBundle(
             pagingArgs,
-            null,
+            lastUpdated,
             "/Coverage?",
             Coverage.SP_BENEFICIARY,
             beneficiary.getIdPart(),

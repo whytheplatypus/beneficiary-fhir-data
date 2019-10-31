@@ -92,17 +92,27 @@
       "searchParam" : [ {
         "name" : "_id",
         "type" : "token",
-        "documentation" : "The ID of the resource"
+        "documentation" : "The patient identifier to search for"
+      }, {
+        "name" : "_lastUpdated",
+        "type" : "date",
+        "documentation" : "Include resources last updated in the given range"
+      }, {
+        "name" : "_lastUpdated",
+        "type" : "date",
+        "documentation" : "Include resources last updated in the given range"
       }, {
         "name" : "identifier",
         "type" : "token",
-        "documentation" : "A patient identifier"
+        "documentation" : "The patient identifier to search for"
       }, {
         "name" : "startIndex",
-        "type" : "string"
+        "type" : "string",
+        "documentation" : "The offset used for result pagination"
       }, {
         "name" : "startIndex",
-        "type" : "string"
+        "type" : "string",
+        "documentation" : "The offset used for result pagination"
       } ]
     }, {
       "type" : "StructureDefinition",

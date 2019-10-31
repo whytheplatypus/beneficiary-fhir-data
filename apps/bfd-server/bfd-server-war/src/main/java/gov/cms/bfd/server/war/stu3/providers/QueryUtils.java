@@ -82,4 +82,76 @@ public class QueryUtils {
       return upperBoundPredicate;
     }
   }
+
+  /**
+   * Create a predicate for the lastUpdate field based on the passed range.
+   *
+   * @param lastUpdated date to test
+   * @param range to base test against
+   * @return true iff within the range specified
+   */
+  static boolean isInRange(Date lastUpdated, DateRangeParam range) {
+    if (range == null || range.isEmpty()) {
+      return true;
+    }
+    Date lowerBound = range.getLowerBoundAsInstant();
+    Date upperBound = range.getUpperBoundAsInstant();
+
+    if (lowerBound != null) {
+      switch (range.getLowerBound().getPrefix()) {
+        case GREATERTHAN:
+          if (lowerBound.compareTo(lastUpdated) <= 0) {
+            return false;
+          }
+          break;
+        case EQUAL:
+        case GREATERTHAN_OR_EQUALS:
+          if (lowerBound.compareTo(lastUpdated) < 0) {
+            return false;
+          }
+        case STARTS_AFTER:
+        case APPROXIMATE:
+        case ENDS_BEFORE:
+        case LESSTHAN:
+        case LESSTHAN_OR_EQUALS:
+        case NOT_EQUAL:
+        default:
+          throw new IllegalArgumentException("_lastUpdate lower bound has invalid prefix");
+      }
+    }
+
+    if (upperBound != null) {
+      switch (range.getUpperBound().getPrefix()) {
+        case EQUAL:
+          if (range.getLowerBound().getPrefix() == ParamPrefixEnum.EQUAL) {
+            if (upperBound.compareTo(lastUpdated) > 0) {
+              return false;
+            }
+          } else {
+            throw new IllegalArgumentException(
+                "_lastUpdate lower bound should have an equal prefix when the upper bound does");
+          }
+          break;
+        case LESSTHAN:
+          if (upperBound.compareTo(lastUpdated) >= 0) {
+            return false;
+          }
+          break;
+        case LESSTHAN_OR_EQUALS:
+          if (upperBound.compareTo(lastUpdated) > 0) {
+            return false;
+          }
+          break;
+        case ENDS_BEFORE:
+        case APPROXIMATE:
+        case STARTS_AFTER:
+        case GREATERTHAN:
+        case GREATERTHAN_OR_EQUALS:
+        case NOT_EQUAL:
+        default:
+          throw new IllegalArgumentException("_lastUpdate upper bound has invalid prefix");
+      }
+    }
+    return true;
+  }
 }
