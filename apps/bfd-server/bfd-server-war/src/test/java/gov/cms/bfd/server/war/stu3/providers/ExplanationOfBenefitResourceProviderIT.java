@@ -1453,58 +1453,6 @@ public final class ExplanationOfBenefitResourceProviderIT {
   /**
    * Verifies that {@link
    * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
-   * as with a lastUpdated parameter before yesterday
-   *
-   * @throws FHIRException (indicates test failure)
-   */
-  @Test
-  public void searchEobBeforeYesterday() throws FHIRException {
-    List<Object> loadedRecords =
-        ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
-    IGenericClient fhirClient = ServerTestUtils.createFhirClient();
-
-    // Get beneficiary information
-    Beneficiary beneficiary =
-        loadedRecords.stream()
-            .filter(r -> r instanceof Beneficiary)
-            .map(r -> (Beneficiary) r)
-            .findFirst()
-            .get();
-
-    // Search with lastYear < lastUpdated < now() - 1day
-    Date yesterday = Date.from(Instant.now().minus(1, ChronoUnit.DAYS));
-    Date lastYear = Date.from(Instant.now().minus(365, ChronoUnit.DAYS));
-    DateRangeParam inTheLastYear = new DateRangeParam(lastYear, yesterday);
-    Bundle searchResultsBeforeRange =
-        fhirClient
-            .search()
-            .forResource(ExplanationOfBenefit.class)
-            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
-            .lastUpdated(inTheLastYear)
-            .returnBundle(Bundle.class)
-            .execute();
-    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBeforeRange.getTotal());
-
-    // Check the self link
-    String selfLink = searchResultsBeforeRange.getLink(IBaseBundle.LINK_SELF).getUrl();
-    Assert.assertTrue(selfLink.contains("lastUpdated"));
-
-    // Search with < yesterday
-    DateRangeParam beforeYesterday = new DateRangeParam().setUpperBoundInclusive(yesterday);
-    Bundle searchResultsBeforeYesterday =
-        fhirClient
-            .search()
-            .forResource(ExplanationOfBenefit.class)
-            .where(ExplanationOfBenefit.PATIENT.hasId(TransformerUtils.buildPatientId(beneficiary)))
-            .lastUpdated(beforeYesterday)
-            .returnBundle(Bundle.class)
-            .execute();
-    Assert.assertEquals("Expected count to be = 0", 0, searchResultsBeforeYesterday.getTotal());
-  }
-
-  /**
-   * Verifies that {@link
-   * gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider#findByPatient} works
    * as with a lastUpdated parameter after yesterday.
    *
    * <p>See https://www.hl7.org/fhir/search.html#lastUpdated for explanation of possible types
@@ -1557,7 +1505,7 @@ public final class ExplanationOfBenefitResourceProviderIT {
    * @throws FHIRException (indicates test failure)
    */
   @Test
-  public void searchEobAfterWithPagination() throws FHIRException {
+  public void searchEobWithLastUpdatedAndPagination() throws FHIRException {
     List<Object> loadedRecords =
         ServerTestUtils.loadData(Arrays.asList(StaticRifResourceGroup.SAMPLE_A.getResources()));
     IGenericClient fhirClient = ServerTestUtils.createFhirClient();
