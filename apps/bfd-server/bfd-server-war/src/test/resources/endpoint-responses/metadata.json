@@ -30,10 +30,15 @@
       "searchParam" : [ {
         "name" : "beneficiary",
         "type" : "reference",
-        "documentation" : "Covered party"
+        "documentation" : "The patient identifier to search for"
+      }, {
+        "name" : "_lastUpdated",
+        "type" : "date",
+        "documentation" : "Include resources last updated in the given range"
       }, {
         "name" : "startIndex",
-        "type" : "string"
+        "type" : "string",
+        "documentation" : "The offset used for result pagination"
       } ]
     }, {
       "type" : "ExplanationOfBenefit",

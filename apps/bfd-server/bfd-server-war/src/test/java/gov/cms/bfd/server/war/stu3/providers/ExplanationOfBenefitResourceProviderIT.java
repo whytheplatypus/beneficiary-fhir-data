@@ -1482,8 +1482,7 @@ public final class ExplanationOfBenefitResourceProviderIT {
             "_lastUpdated=gt" + earlyDateTime,
             "_lastUpdated=ge" + earlyDateTime,
             "_lastUpdated=le" + nowDateTime,
-            "_lastUpdated=ge" + earlyDateTime + "&_lastUpdated=le" + nowDateTime,
-            "_lastUpdated=eq" + nowDateTime);
+            "_lastUpdated=ge" + earlyDateTime + "&_lastUpdated=le" + nowDateTime);
     testLastUpdatedUrls(fhirClient, beneficiary.getBeneficiaryId(), allUrls, 8);
 
     // Empty searches
