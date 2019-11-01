@@ -1475,14 +1475,15 @@ public final class ExplanationOfBenefitResourceProviderIT {
             .get();
 
     // Build up a list of lastUpdatedURLs that return > all values values
-    String nowDateTime = DateTimeDt.withCurrentTime().getValueAsString();
+    String nowDateTime = new DateTimeDt(Date.from(Instant.now().plusSeconds(1))).getValueAsString();
     String earlyDateTime = "2019-10-01T00:00:00-04:00";
     List<String> allUrls =
         Arrays.asList(
             "_lastUpdated=gt" + earlyDateTime,
             "_lastUpdated=ge" + earlyDateTime,
             "_lastUpdated=le" + nowDateTime,
-            "_lastUpdated=ge" + earlyDateTime + "&_lastUpdated=le" + nowDateTime);
+            "_lastUpdated=ge" + earlyDateTime + "&_lastUpdated=le" + nowDateTime,
+            "_lastUpdated=gt" + earlyDateTime + "&_lastUpdated=lt" + nowDateTime);
     testLastUpdatedUrls(fhirClient, beneficiary.getBeneficiaryId(), allUrls, 8);
 
     // Empty searches
@@ -1490,8 +1491,6 @@ public final class ExplanationOfBenefitResourceProviderIT {
         Arrays.asList(
             "_lastUpdated=lt" + earlyDateTime,
             "_lastUpdated=le" + earlyDateTime,
-            "_lastUpdated=lt" + nowDateTime,
-            "_lastUpdated=gt" + earlyDateTime + "&_lastUpdated=lt" + nowDateTime,
             "_lastUpdated=eq" + earlyDateTime);
     testLastUpdatedUrls(fhirClient, beneficiary.getBeneficiaryId(), emptyUrls, 0);
   }
@@ -1597,6 +1596,14 @@ public final class ExplanationOfBenefitResourceProviderIT {
     return results;
   }
 
+  /**
+   * Test the set of lastUpdated values
+   *
+   * @param fhirClient to use
+   * @param id the bene id to use
+   * @param urls is a list of lastUpdate values to test to find
+   * @param expectedValue number of matches
+   */
   private void testLastUpdatedUrls(
       IGenericClient fhirClient, String id, List<String> urls, int expectedValue) {
     String baseResourceUrl =
@@ -1608,7 +1615,8 @@ public final class ExplanationOfBenefitResourceProviderIT {
       Bundle searchResults =
           fhirClient.search().byUrl(theSearchUrl).returnBundle(Bundle.class).execute();
       Assert.assertEquals(
-          String.format("Expected %s to not filter any resources", lastUpdatedValue),
+          String.format(
+              "Expected %s to filter resources using lastUpdated correctly", lastUpdatedValue),
           expectedValue,
           searchResults.getTotal());
     }

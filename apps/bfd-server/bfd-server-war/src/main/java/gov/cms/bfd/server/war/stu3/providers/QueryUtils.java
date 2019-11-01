@@ -7,9 +7,13 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** As set of methods to help form JPA queries. */
 public class QueryUtils {
+  private static final Logger LOGGER = LoggerFactory.getLogger(QueryUtils.class);
+
   /**
    * Create a predicate for the lastUpdate field based on the passed range.
    *
@@ -100,15 +104,16 @@ public class QueryUtils {
     if (lowerBound != null) {
       switch (range.getLowerBound().getPrefix()) {
         case GREATERTHAN:
-          if (lowerBound.compareTo(lastUpdated) <= 0) {
+          if (lowerBound.compareTo(lastUpdated) >= 0) {
             return false;
           }
           break;
         case EQUAL:
         case GREATERTHAN_OR_EQUALS:
-          if (lowerBound.compareTo(lastUpdated) < 0) {
+          if (lowerBound.compareTo(lastUpdated) > 0) {
             return false;
           }
+          break;
         case STARTS_AFTER:
         case APPROXIMATE:
         case ENDS_BEFORE:
@@ -124,7 +129,7 @@ public class QueryUtils {
       switch (range.getUpperBound().getPrefix()) {
         case EQUAL:
           if (range.getLowerBound().getPrefix() == ParamPrefixEnum.EQUAL) {
-            if (upperBound.compareTo(lastUpdated) > 0) {
+            if (upperBound.compareTo(lastUpdated) < 0) {
               return false;
             }
           } else {
@@ -133,12 +138,12 @@ public class QueryUtils {
           }
           break;
         case LESSTHAN:
-          if (upperBound.compareTo(lastUpdated) >= 0) {
+          if (upperBound.compareTo(lastUpdated) <= 0) {
             return false;
           }
           break;
         case LESSTHAN_OR_EQUALS:
-          if (upperBound.compareTo(lastUpdated) > 0) {
+          if (upperBound.compareTo(lastUpdated) < 0) {
             return false;
           }
           break;
