@@ -58,7 +58,7 @@ public final class DatabaseTestHelper {
    * @return a {@link DataSource} for the test DB, which will <strong>not</strong> be cleaned or
    *     schema-fied first
    */
-  public static DataSource getTestDatabase() {
+  public static ComponentDataSource getTestDatabase() {
     String url = getTestDatabaseJdbcUrl();
     String username = getTestDatabaseUsername();
     String password = getTestDatabasePassword();
@@ -72,8 +72,8 @@ public final class DatabaseTestHelper {
    * @return a {@link DataSource} for the test DB, which will <strong>not</strong> be cleaned or
    *     schema-fied first
    */
-  public static DataSource getTestDatabase(String url, String username, String password) {
-    DataSource dataSource;
+  public static ComponentDataSource getTestDatabase(String url, String username, String password) {
+    ComponentDataSource dataSource;
     if (url.startsWith(JDBC_URL_PREFIX_BLUEBUTTON_TEST + "hsqldb:mem")) {
       dataSource = createDataSourceForHsqlEmbeddedWithServer(url);
     } else if (url.startsWith("jdbc:hsqldb:hsql://localhost")) {
@@ -88,8 +88,8 @@ public final class DatabaseTestHelper {
   }
 
   /** @return a {@link DataSource} for the test DB, which will be cleaned (i.e. wiped) first */
-  public static DataSource getTestDatabaseAfterClean() {
-    DataSource dataSource = getTestDatabase();
+  public static ComponentDataSource getTestDatabaseAfterClean() {
+    ComponentDataSource dataSource = getTestDatabase();
 
     // Try to prevent career-limiting moves.
     String url = getTestDatabaseJdbcUrl();
@@ -108,8 +108,8 @@ public final class DatabaseTestHelper {
    * @return a {@link DataSource} for the test DB, which will be cleaned (i.e. wiped) and then have
    *     the BFD schema applied to it, first
    */
-  public static DataSource getTestDatabaseAfterCleanAndSchema() {
-    DataSource dataSource = getTestDatabaseAfterClean();
+  public static ComponentDataSource getTestDatabaseAfterCleanAndSchema() {
+    ComponentDataSource dataSource = getTestDatabaseAfterClean();
 
     // Schema-ify it so it's ready to go.
     DatabaseSchemaManager.createOrUpdateSchema(dataSource);
@@ -124,7 +124,7 @@ public final class DatabaseTestHelper {
    * @param url the JDBC URL that the application was configured to use
    * @return a HSQL {@link DataSource} for the test DB
    */
-  private static DataSource createDataSourceForHsqlEmbeddedWithServer(String url) {
+  private static ComponentDataSource createDataSourceForHsqlEmbeddedWithServer(String url) {
     if (!url.startsWith(JDBC_URL_PREFIX_BLUEBUTTON_TEST)) {
       throw new IllegalArgumentException();
     }
@@ -159,7 +159,7 @@ public final class DatabaseTestHelper {
     server.start();
 
     // Create the DataSource to connect to that shiny new DB.
-    DataSource dataSource =
+    ComponentDataSource dataSource =
         createDataSourceForHsqlServer(
             String.format("jdbc:hsqldb:hsql://localhost:%d/test-embedded", hsqldbPort),
             HSQL_SERVER_USERNAME,
@@ -173,13 +173,13 @@ public final class DatabaseTestHelper {
    * @param password the password for the test database to connect to
    * @return a HSQL {@link DataSource} for the test DB
    */
-  private static DataSource createDataSourceForHsqlServer(
+  private static ComponentDataSource createDataSourceForHsqlServer(
       String url, String username, String password) {
     if (!url.startsWith("jdbc:hsqldb:hsql://localhost")) {
       throw new IllegalArgumentException();
     }
 
-    JDBCDataSource dataSource = new JDBCDataSource();
+    JDBCComponentDataSource dataSource = new JDBCComponentDataSource();
     dataSource.setUrl(url);
     if (username != null) dataSource.setUser(username);
     if (password != null) dataSource.setPassword(password);
@@ -209,9 +209,9 @@ public final class DatabaseTestHelper {
    * @param password the password for the test database to connect to
    * @return a PostgreSQL {@link DataSource} for the test DB
    */
-  private static DataSource createDataSourceForPostgresql(
+  private static ComponentDataSource createDataSourceForPostgresql(
       String url, String username, String password) {
-    PGSimpleDataSource dataSource = new PGSimpleDataSource();
+    PGComponentDataSource dataSource = new PGComponentDataSource();
     dataSource.setUrl(url);
     if (username != null) dataSource.setUser(username);
     if (password != null) dataSource.setPassword(password);
@@ -233,20 +233,10 @@ public final class DatabaseTestHelper {
      * Constructs a {@link DataSourceComponents} instance for the specified test {@link DataSource}
      * (does not support more complicated {@link DataSource}s, as discussed in the class' JavaDoc)
      */
-    public DataSourceComponents(DataSource dataSource) {
-      if (dataSource instanceof JDBCDataSource) {
-        JDBCDataSource hsqlDataSource = (JDBCDataSource) dataSource;
-        this.url = hsqlDataSource.getUrl();
-        this.username = hsqlDataSource.getUser();
-        this.password = HSQL_SERVER_PASSWORD; // no getter available; hardcoded
-      } else if (dataSource instanceof PGSimpleDataSource) {
-        PGSimpleDataSource pgDataSource = (PGSimpleDataSource) dataSource;
-        this.url = pgDataSource.getUrl();
-        this.username = pgDataSource.getUser();
-        this.password = pgDataSource.getPassword();
-      } else {
-        throw new BadCodeMonkeyException();
-      }
+    public DataSourceComponents(ComponentDataSource dataSource) {
+      this.url = dataSource.getUrl();
+      this.username = dataSource.getUser();
+      this.password = dataSource.getPassword(); // no getter available; hardcoded
     }
 
     /** @return the JDBC URL that should be used to connect to the test DB */
@@ -264,4 +254,35 @@ public final class DatabaseTestHelper {
       return password;
     }
   }
+
+  public interface ComponentDataSource extends DataSource {
+    String getUrl();
+
+    String getUser();
+
+    String getPassword();
+  }
+
+  public static final class JDBCComponentDataSource extends JDBCDataSource
+      implements ComponentDataSource {
+    /*
+    	public static void setPassword(String password) {
+    		this.password = password
+    	}
+    */
+    public String getPassword() {
+      return super.password;
+    }
+    /*
+    public String getUsername() {
+      return super.getUser();
+    }
+
+    public String getUrl() {
+      return super.getUrl();
+    }*/
+  }
+
+  public static final class PGComponentDataSource extends PGSimpleDataSource
+      implements ComponentDataSource {}
 }

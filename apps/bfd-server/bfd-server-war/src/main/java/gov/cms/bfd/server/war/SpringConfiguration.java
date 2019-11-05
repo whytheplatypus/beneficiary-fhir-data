@@ -12,6 +12,7 @@ import com.justdavis.karl.misc.exceptions.BadCodeMonkeyException;
 import com.zaxxer.hikari.HikariDataSource;
 import gov.cms.bfd.model.rif.schema.DatabaseSchemaManager;
 import gov.cms.bfd.model.rif.schema.DatabaseTestHelper;
+import gov.cms.bfd.model.rif.schema.DatabaseTestHelper.ComponentDataSource;
 import gov.cms.bfd.model.rif.schema.DatabaseTestHelper.DataSourceComponents;
 import gov.cms.bfd.server.war.stu3.providers.CoverageResourceProvider;
 import gov.cms.bfd.server.war.stu3.providers.ExplanationOfBenefitResourceProvider;
@@ -147,7 +148,7 @@ public class SpringConfiguration {
    */
   private static HikariDataSource createTestDatabaseIfNeededForHsql(
       String url, String connectionsMaxText, MetricRegistry metricRegistry) {
-    DataSource dataSource = DatabaseTestHelper.getTestDatabaseAfterCleanAndSchema();
+    ComponentDataSource dataSource = DatabaseTestHelper.getTestDatabaseAfterCleanAndSchema();
     DataSourceComponents dataSourceComponents = new DataSourceComponents(dataSource);
 
     // Create the DataSource to connect to that shiny new DB.

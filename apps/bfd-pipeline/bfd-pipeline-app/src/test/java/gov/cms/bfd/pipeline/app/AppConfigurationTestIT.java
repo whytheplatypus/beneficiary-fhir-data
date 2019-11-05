@@ -2,6 +2,7 @@ package gov.cms.bfd.pipeline.app;
 
 import gov.cms.bfd.model.rif.RifFileType;
 import gov.cms.bfd.model.rif.schema.DatabaseTestHelper;
+import gov.cms.bfd.model.rif.schema.DatabaseTestHelper.ComponentDataSource;
 import gov.cms.bfd.model.rif.schema.DatabaseTestHelper.DataSourceComponents;
 import gov.cms.bfd.pipeline.rif.load.RifLoaderTestUtils;
 import java.io.BufferedReader;
@@ -13,7 +14,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Collectors;
-import javax.sql.DataSource;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.Assert;
@@ -41,7 +41,7 @@ public final class AppConfigurationTestIT {
   public void normalUsage()
       throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException,
           DecoderException {
-    DataSource dataSource = DatabaseTestHelper.getTestDatabase();
+    ComponentDataSource dataSource = DatabaseTestHelper.getTestDatabase();
     DataSourceComponents dataSourceComponents = new DataSourceComponents(dataSource);
 
     ProcessBuilder testAppBuilder = createProcessBuilderForTestDriver();
