@@ -169,22 +169,22 @@ public final class RifLoaderIT {
     // Run the initial task
     Assert.assertEquals(
         "Should be running the initial task",
-        RifLoaderIdleTasks.Task.INITIAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.INITIAL,
+        loader.getIdleTasks().getCurrentState());
     loader.doIdleTask();
 
     // Run the post startup task
     Assert.assertEquals(
         "Should be running the post-startup task",
-        RifLoaderIdleTasks.Task.POST_STARTUP,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.POST_STARTUP,
+        loader.getIdleTasks().getCurrentState());
     loader.doIdleTask();
 
     // Should mbiHash should be set now
     Assert.assertEquals(
         "Should be running the normal task",
-        RifLoaderIdleTasks.Task.NORMAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.NORMAL,
+        loader.getIdleTasks().getCurrentState());
     Assert.assertTrue(
         "Expect all mbiHash have been filled",
         em.createQuery(selectBeneficiary, Beneficiary.class).getResultList().isEmpty());
@@ -215,22 +215,22 @@ public final class RifLoaderIT {
     // Run the initial task
     Assert.assertEquals(
         "Should be running the initial task",
-        RifLoaderIdleTasks.Task.INITIAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.INITIAL,
+        loader.getIdleTasks().getCurrentState());
     loader.doIdleTask();
 
     // Run the post startup task
     Assert.assertEquals(
         "Should be running the post-startup task",
-        RifLoaderIdleTasks.Task.POST_STARTUP,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.POST_STARTUP,
+        loader.getIdleTasks().getCurrentState());
     loader.doIdleTask();
 
     // Should be normal now
     Assert.assertEquals(
         "Should be running the normal task",
-        RifLoaderIdleTasks.Task.NORMAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.NORMAL,
+        loader.getIdleTasks().getCurrentState());
 
     loader.close();
   }
@@ -253,13 +253,13 @@ public final class RifLoaderIT {
     // Run the initial task
     Assert.assertEquals(
         "Should be running the initial task",
-        RifLoaderIdleTasks.Task.INITIAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.INITIAL,
+        loader.getIdleTasks().getCurrentState());
     loader.doIdleTask();
 
     // Run the post startup task
     Instant startTime = Instant.now();
-    while (loader.getIdleTasks().getCurrentTask() == RifLoaderIdleTasks.Task.POST_STARTUP) {
+    while (loader.getIdleTasks().getCurrentState() == RifLoaderIdleTasks.State.POST_STARTUP) {
       loader.doIdleTask();
     }
     Duration time = Duration.between(startTime, Instant.now());
@@ -268,8 +268,8 @@ public final class RifLoaderIT {
     // Should mbiHash should be set now
     Assert.assertEquals(
         "Should be running the normal task",
-        RifLoaderIdleTasks.Task.NORMAL,
-        loader.getIdleTasks().getCurrentTask());
+        RifLoaderIdleTasks.State.NORMAL,
+        loader.getIdleTasks().getCurrentState());
     loader.close();
   }
 

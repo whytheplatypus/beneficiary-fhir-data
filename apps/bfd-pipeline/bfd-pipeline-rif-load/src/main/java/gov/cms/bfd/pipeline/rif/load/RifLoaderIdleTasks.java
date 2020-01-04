@@ -73,7 +73,7 @@ public class RifLoaderIdleTasks {
   private static final Logger LOGGER = LoggerFactory.getLogger(RifLoaderIdleTasks.class);
 
   /** Enum to tell what the current task is being executed. */
-  public enum Task {
+  public enum State {
     /** The initial task which is executed after startup */
     INITIAL,
 
@@ -97,7 +97,7 @@ public class RifLoaderIdleTasks {
   private final ExecutorService executorService;
 
   /* The task that is going to execute next */
-  private Task currentTask = Task.INITIAL;
+  private State currentState = State.INITIAL;
 
   /**
    * Create a helper to manage the idle time tasks.
@@ -127,8 +127,21 @@ public class RifLoaderIdleTasks {
    *
    * @return the current task
    */
-  public Task getCurrentTask() {
-    return currentTask;
+  public State getCurrentState() {
+    return currentState;
+  }
+
+  public Task getTaskFor(State state) {
+    switch (state) {
+      case INITIAL:
+        return new InitialTask();
+      case POST_STARTUP:
+        return new PostStartupTask();
+      case NORMAL:
+        return new NormalTask();
+      default:
+        throw new RuntimeException("Unexpected idle task");
+    }
   }
 
   /**
@@ -137,92 +150,27 @@ public class RifLoaderIdleTasks {
    * not interfer with RIF file processing.
    */
   public void doIdleTask() {
-    boolean isTaskDone;
-    switch (currentTask) {
-      case INITIAL:
-        isTaskDone = doInitialTask();
-        break;
-      case POST_STARTUP:
-        isTaskDone = doPostStartupTask();
-        break;
-      case NORMAL:
-        isTaskDone = doNormalTask();
-        break;
-      default:
-        throw new RuntimeException("Unexpected idle task");
-    }
+    State state = getCurrentState();
+    Task task = getTaskFor(state);
+    boolean isTaskDone = task.execute();
     if (isTaskDone) {
-      setNextTask();
+      setNextState();
     }
   }
 
   /** Set the currentTask to the next task after current task. */
-  private void setNextTask() {
-    switch (currentTask) {
+  private void setNextState() {
+    switch (currentState) {
       case INITIAL:
-        currentTask = Task.POST_STARTUP;
+        currentState = State.POST_STARTUP;
         break;
 
       case POST_STARTUP:
       case NORMAL:
       default:
-        currentTask = Task.NORMAL;
+        currentState = State.NORMAL;
         break;
     }
-  }
-
-  /**
-   * Run this task as the first idle task.
-   *
-   * @return true if done with this task.
-   */
-  public boolean doInitialTask() {
-    final EntityManager em = entityManagerFactory.createEntityManager();
-    final Long beneficiaryCount =
-        em.createQuery(COUNT_UNHASHED_BENFICIARIES, Long.class).getSingleResult();
-    final Long historyCount =
-        em.createQuery(COUNT_UNHASHED_HISTORIES, Long.class).getSingleResult();
-
-    LOGGER.info(
-        "Starting idle task processing with null mbiHash for: {} Beneficaries and {} Benficiary Histories",
-        beneficiaryCount,
-        historyCount);
-
-    return true;
-  }
-
-  /**
-   * Run this task after the initial task. Respect the TASK_TIME_LIMIT.
-   *
-   * @return true if done with the current task.
-   */
-  public boolean doPostStartupTask() {
-    final Instant startTime = Instant.now();
-    LOGGER.debug("Started a PostStartup time slice");
-
-    // Execute batches in parallel
-    List<Future<Boolean>> batchFutures = new ArrayList<Future<Boolean>>();
-    batchFutures.add(
-        executorService.submit(() -> doTransaction(startTime, this::fixupBeneficiaryBatch)));
-    batchFutures.add(
-        executorService.submit(() -> doTransaction(startTime, this::fixupHistoryBatch)));
-
-    final boolean isDone = waitUntilDone(batchFutures);
-    LOGGER.debug("Finished a PostStartup time slice");
-    if (isDone) {
-      LOGGER.info("Finished idle startup tasks");
-    }
-    return isDone;
-  }
-
-  /**
-   * Do the normal idle task
-   *
-   * @return true if this task is complete
-   */
-  public boolean doNormalTask() {
-    // Nothing to do normally
-    return false;
   }
 
   /**
@@ -240,81 +188,6 @@ public class RifLoaderIdleTasks {
     } catch (TimeoutException | ExecutionException | InterruptedException ex) {
       LOGGER.error("Exception executing an idle  task", ex);
       return false;
-    }
-    return isDone;
-  }
-
-  /**
-   * Fixup a batch of Beneficiaries. Update the beneficary metrics.
-   *
-   * @param em a {@link EntityManager} setup for a transaction
-   * @return true if done with all fixups
-   */
-  public Boolean fixupBeneficiaryBatch(final EntityManager em, final Instant startTime) {
-    LOGGER.debug("Start fixing up a Beneficiary batch");
-    boolean isDone = true;
-    // Use a cursor, measures slightly faster than queries with a LIMIT
-    try (ScrollableResults itemCursor =
-        em.unwrap(Session.class)
-            .createQuery(SELECT_UNHASHED_BENFICIARIES)
-            .setFetchSize(BATCH_COUNT)
-            .scroll(ScrollMode.SCROLL_INSENSITIVE)) {
-      int count = 0;
-      while (inPeriod(startTime, TASK_TIME_LIMIT) && itemCursor.next()) {
-        final Beneficiary beneficiary = (Beneficiary) itemCursor.get(0);
-        beneficiary
-            .getMedicareBeneficiaryId()
-            .ifPresent(
-                mbi -> {
-                  final String mbiHash = RifLoader.computeMbiHash(options, secretKeyFactory, mbi);
-                  beneficiary.setMbiHash(Optional.of(mbiHash));
-                });
-        isDone = itemCursor.isLast();
-        // Write to the DB in batches
-        if (++count % BATCH_COUNT == 0) {
-          em.flush();
-          em.clear();
-        }
-      }
-      beneficaryMeter.mark(count);
-      LOGGER.debug("Finished fixing up a Beneficiary batch: {}", count);
-    }
-    return isDone;
-  }
-
-  /**
-   * Fixup a batch of BeneficiaryHistory. Update the history metrics.
-   *
-   * @param em a {@link EntityManager} setup for a transaction
-   * @return true if done with all fixups
-   */
-  public Boolean fixupHistoryBatch(final EntityManager em, final Instant startTime) {
-    LOGGER.debug("Start fixing up a History batch");
-    boolean isDone = true;
-    try (ScrollableResults itemCursor =
-        em.unwrap(Session.class)
-            .createQuery(SELECT_UNHASHED_HISTORIES)
-            .setFetchSize(BATCH_COUNT)
-            .scroll(ScrollMode.SCROLL_INSENSITIVE)) {
-      int count = 0;
-      while (inPeriod(startTime, TASK_TIME_LIMIT) && itemCursor.next()) {
-        final BeneficiaryHistory beneficiary = (BeneficiaryHistory) itemCursor.get(0);
-        beneficiary
-            .getMedicareBeneficiaryId()
-            .ifPresent(
-                mbi -> {
-                  final String mbiHash = RifLoader.computeMbiHash(options, secretKeyFactory, mbi);
-                  beneficiary.setMbiHash(Optional.of(mbiHash));
-                });
-        isDone = itemCursor.isLast();
-        // Write to the DB in batches
-        if (++count % BATCH_COUNT == 0) {
-          em.flush();
-          em.clear();
-        }
-      }
-      historyMeter.mark(count);
-      LOGGER.debug("Finished fixing up a History batch: {}", count);
     }
     return isDone;
   }
@@ -358,4 +231,161 @@ public class RifLoaderIdleTasks {
       }
     }
   }
+
+  interface Task {
+
+    default boolean execute() {
+      return false;
+    }
+  }
+
+  /**
+   * Run this task as the first idle task.
+   *
+   * @return true if done with this task.
+   *     <p>public boolean doInitialTask() { final EntityManager em =
+   *     entityManagerFactory.createEntityManager(); final Long beneficiaryCount =
+   *     em.createQuery(COUNT_UNHASHED_BENFICIARIES, Long.class).getSingleResult(); final Long
+   *     historyCount = em.createQuery(COUNT_UNHASHED_HISTORIES, Long.class).getSingleResult();
+   *     <p>LOGGER.info( "Starting idle task processing with null mbiHash for: {} Beneficaries and
+   *     {} Benficiary Histories", beneficiaryCount, historyCount);
+   *     <p>return true; }
+   */
+  public class InitialTask implements Task {
+
+    @Override
+    public boolean execute() {
+      final EntityManager em = entityManagerFactory.createEntityManager();
+      final Long beneficiaryCount =
+          em.createQuery(COUNT_UNHASHED_BENFICIARIES, Long.class).getSingleResult();
+      final Long historyCount =
+          em.createQuery(COUNT_UNHASHED_HISTORIES, Long.class).getSingleResult();
+
+      LOGGER.info(
+          "Starting idle task processing with null mbiHash for: {} Beneficaries and {} Benficiary Histories",
+          beneficiaryCount,
+          historyCount);
+
+      return true;
+    }
+  }
+
+  /**
+   * Run this task after the initial task. Respect the TASK_TIME_LIMIT.
+   *
+   * @return true if done with the current task.
+   *     <p>public boolean doPostStartupTask() { final Instant startTime = Instant.now();
+   *     LOGGER.debug("Started a PostStartup time slice");
+   *     <p>// Execute batches in parallel List<Future<Boolean>> batchFutures = new
+   *     ArrayList<Future<Boolean>>(); batchFutures.add( executorService.submit(() ->
+   *     doTransaction(startTime, this::fixupBeneficiaryBatch))); batchFutures.add(
+   *     executorService.submit(() -> doTransaction(startTime, this::fixupHistoryBatch)));
+   *     <p>final boolean isDone = waitUntilDone(batchFutures); LOGGER.debug("Finished a PostStartup
+   *     time slice"); if (isDone) { LOGGER.info("Finished idle startup tasks"); } return isDone; }
+   */
+  public class PostStartupTask implements Task {
+
+    @Override
+    public boolean execute() {
+      final Instant startTime = Instant.now();
+      LOGGER.debug("Started a PostStartup time slice");
+
+      // Execute batches in parallel
+      List<Future<Boolean>> batchFutures = new ArrayList<Future<Boolean>>();
+      batchFutures.add(
+          executorService.submit(() -> doTransaction(startTime, this::fixupBeneficiaryBatch)));
+      batchFutures.add(
+          executorService.submit(() -> doTransaction(startTime, this::fixupHistoryBatch)));
+
+      final boolean isDone = waitUntilDone(batchFutures);
+      LOGGER.debug("Finished a PostStartup time slice");
+      if (isDone) {
+        LOGGER.info("Finished idle startup tasks");
+      }
+      return isDone;
+    }
+
+    /**
+     * Fixup a batch of Beneficiaries. Update the beneficary metrics.
+     *
+     * @param em a {@link EntityManager} setup for a transaction
+     * @return true if done with all fixups
+     */
+    public Boolean fixupBeneficiaryBatch(final EntityManager em, final Instant startTime) {
+      LOGGER.debug("Start fixing up a Beneficiary batch");
+      boolean isDone = true;
+      // Use a cursor, measures slightly faster than queries with a LIMIT
+      try (ScrollableResults itemCursor =
+          em.unwrap(Session.class)
+              .createQuery(SELECT_UNHASHED_BENFICIARIES)
+              .setFetchSize(BATCH_COUNT)
+              .scroll(ScrollMode.SCROLL_INSENSITIVE)) {
+        int count = 0;
+        while (inPeriod(startTime, TASK_TIME_LIMIT) && itemCursor.next()) {
+          final Beneficiary beneficiary = (Beneficiary) itemCursor.get(0);
+          beneficiary
+              .getMedicareBeneficiaryId()
+              .ifPresent(
+                  mbi -> {
+                    final String mbiHash = RifLoader.computeMbiHash(options, secretKeyFactory, mbi);
+                    beneficiary.setMbiHash(Optional.of(mbiHash));
+                  });
+          isDone = itemCursor.isLast();
+          // Write to the DB in batches
+          if (++count % BATCH_COUNT == 0) {
+            em.flush();
+            em.clear();
+          }
+        }
+        beneficaryMeter.mark(count);
+        LOGGER.debug("Finished fixing up a Beneficiary batch: {}", count);
+      }
+      return isDone;
+    }
+
+    /**
+     * Fixup a batch of BeneficiaryHistory. Update the history metrics.
+     *
+     * @param em a {@link EntityManager} setup for a transaction
+     * @return true if done with all fixups
+     */
+    public Boolean fixupHistoryBatch(final EntityManager em, final Instant startTime) {
+      LOGGER.debug("Start fixing up a History batch");
+      boolean isDone = true;
+      try (ScrollableResults itemCursor =
+          em.unwrap(Session.class)
+              .createQuery(SELECT_UNHASHED_HISTORIES)
+              .setFetchSize(BATCH_COUNT)
+              .scroll(ScrollMode.SCROLL_INSENSITIVE)) {
+        int count = 0;
+        while (inPeriod(startTime, TASK_TIME_LIMIT) && itemCursor.next()) {
+          final BeneficiaryHistory beneficiary = (BeneficiaryHistory) itemCursor.get(0);
+          beneficiary
+              .getMedicareBeneficiaryId()
+              .ifPresent(
+                  mbi -> {
+                    final String mbiHash = RifLoader.computeMbiHash(options, secretKeyFactory, mbi);
+                    beneficiary.setMbiHash(Optional.of(mbiHash));
+                  });
+          isDone = itemCursor.isLast();
+          // Write to the DB in batches
+          if (++count % BATCH_COUNT == 0) {
+            em.flush();
+            em.clear();
+          }
+        }
+        historyMeter.mark(count);
+        LOGGER.debug("Finished fixing up a History batch: {}", count);
+      }
+      return isDone;
+    }
+  }
+
+  /**
+   * Do the normal idle task
+   *
+   * @return true if this task is complete
+   *     <p>public boolean doNormalTask() { // Nothing to do normally return false; }
+   */
+  public class NormalTask implements Task {}
 }
